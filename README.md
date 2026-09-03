@@ -1,148 +1,119 @@
+# 📊 Customer Churn Intelligence
 
-# Customer Churn Prediction
+An end-to-end **machine learning customer churn prediction project** built with Python, Scikit-learn, and Streamlit.
 
-## Project Overview
+The project analyzes customer characteristics and service information to predict the probability that a customer will churn and provides actionable retention recommendations.
 
-This project predicts whether a telecom customer is likely to churn using machine learning.
+## 🚀 Live Demo
 
-The project covers the complete machine learning workflow:
+👉 **Streamlit App:**
 
-- Data understanding and preprocessing
-- Exploratory data analysis
-- Feature engineering
-- Categorical variable encoding
-- Train/test splitting
-- Logistic Regression
-- Decision Tree
-- Random Forest
-- Model evaluation
-- Hyperparameter tuning
-- Probability threshold optimization
+PASTE_YOUR_STREAMLIT_APP_URL_HERE
+
+## 📌 Project Overview
+
+Customer churn is an important business problem because retaining an existing customer can be more cost-effective than acquiring a new one.
+
+This project builds a machine learning solution that:
+
+- Analyzes customer and service characteristics
+- Preprocesses categorical and numerical data
+- Compares multiple classification algorithms
+- Tunes a Random Forest model
+- Optimizes the prediction threshold for F1-score
+- Predicts individual customer churn probability
+- Classifies customers into Low, Medium, and High risk
+- Provides recommended retention actions
+- Deploys the final model through Streamlit Community Cloud
+
+## 🧠 Machine Learning Workflow
+
+Raw Customer Data → Data Cleaning → Feature Engineering → One-Hot Encoding → Train/Test Split → Model Comparison → Random Forest Tuning → Threshold Optimization → Final Model → Streamlit Deployment
+
+## 📂 Project Structure
+
+customer-intelligence-churn/
+├── app.py
+├── data/raw/telco_customer_churn.csv
+├── models/customer_churn_random_forest.pkl
+├── models/churn_threshold.txt
+├── models/feature_importance.csv
+├── notebooks/01_data_understanding.ipynb
+├── README.md
+└── requirements.txt
+
+## 📊 Models Compared
+
+| Model | Accuracy | Precision | Recall | F1 Score | ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| Logistic Regression | 79.84% | 65.00% | 52.14% | 57.86% | 0.8423 |
+| Decision Tree | 79.42% | 63.12% | 54.01% | 58.21% | 0.8272 |
+| Random Forest | **80.48%** | **66.67%** | 52.94% | **59.02%** | **0.8450** |
+
+The Random Forest model provided the strongest overall performance based on ROC-AUC and F1-score among the evaluated baseline models.
+
+## 🌲 Final Model
+
+The final solution uses a **Random Forest Classifier** with hyperparameter tuning.
+
+Key steps included:
+
+- GridSearchCV
+- 5-fold cross-validation
+- ROC-AUC based model selection
+- Prediction threshold optimization
 - Feature importance analysis
-- Model saving
-- Streamlit deployment
 
-## Dataset
+The optimized threshold is stored separately in `models/churn_threshold.txt` so the deployed application can use the selected decision threshold.
 
-The project uses the Telco Customer Churn dataset.
+## 🔎 Important Churn Drivers
 
-Target variable:
+Feature importance analysis identified important customer and service-related variables, including factors related to:
 
-- `Churn`
-  - `0` = Customer does not churn
-  - `1` = Customer churns
-
-Important features include:
-
-- Tenure
-- Monthly Charges
-- Total Charges
+- Customer tenure
+- Monthly charges
+- Total charges
+- Internet service type
+- Payment method
 - Contract type
-- Internet Service
-- Payment Method
-- Online Security
-- Tech Support
-- Streaming services
-- Customer demographics
+- Service subscriptions
 
-## Machine Learning Models
+Feature importance should be interpreted as model behavior rather than proof of causation.
 
-Three classification models were evaluated:
+## 🌐 Streamlit Application
 
-1. Logistic Regression
-2. Decision Tree
-3. Random Forest
+The deployed application allows users to enter a customer's:
 
-Random Forest was selected as the final model based on its overall predictive performance.
+- Personal information
+- Tenure
+- Service subscriptions
+- Contract information
+- Payment method
+- Monthly charges
+- Total charges
 
-The final model was further improved using hyperparameter tuning and probability threshold optimization.
+The application produces:
 
-## Model Evaluation
+### 🔮 Churn Prediction
 
-The models were evaluated using:
+- Churn probability
+- Predicted churn / no-churn outcome
+- Low / Medium / High risk classification
+- Customer summary
+- Retention recommendations
+
+### 📈 Model Insights
 
 - Accuracy
 - Precision
 - Recall
-- F1 Score
+- F1-score
 - ROC-AUC
-- Confusion Matrix
+- Confusion matrix
+- ROC curve
+- Feature importance
 
-ROC-AUC was emphasized because churn prediction is a classification problem where correctly identifying potential churners is important.
-
-## Feature Importance
-
-Feature importance analysis was performed to understand which customer characteristics contribute most to churn predictions.
-
-Important predictors included factors such as:
-
-- Tenure
-- Monthly Charges
-- Total Charges
-- Internet Service
-- Contract
-- Payment Method
-- Online Security
-- Tech Support
-
-## Streamlit Application
-
-A Streamlit web application was created to allow users to enter customer information and receive:
-
-- Churn probability
-- Churn prediction
-- Risk level
-- Suggested customer retention actions
-
-### Run the Application
-
-From the project root directory:
-
-    streamlit run app.py
-
-The application will open in a browser at:
-
-    http://localhost:8501
-
-## Project Structure
-
-    customer-intelligence-churn/
-    |
-    +-- app.py
-    +-- README.md
-    +-- requirements.txt
-    |
-    +-- data/
-    |   +-- raw/
-    |   |   +-- telco_customer_churn.csv
-    |   +-- processed/
-    |
-    +-- models/
-    |   +-- customer_churn_random_forest.pkl
-    |   +-- churn_threshold.txt
-    |   +-- feature_importance.csv
-    |
-    +-- notebooks/
-    |   +-- 01_data_understanding.ipynb
-    |
-    +-- sql/
-    +-- src/
-    +-- tests/
-
-## Business Value
-
-The model can help a telecom company identify customers who are at higher risk of leaving.
-
-Potential business actions include:
-
-- Offering targeted retention discounts
-- Improving customer support
-- Providing service upgrades
-- Promoting longer-term contracts
-- Addressing customers with high monthly charges
-- Proactively contacting high-risk customers
-
-## Technologies Used
+## 🛠️ Technologies Used
 
 - Python
 - Pandas
@@ -152,8 +123,62 @@ Potential business actions include:
 - Seaborn
 - Joblib
 - Streamlit
-- Jupyter Notebook
+- Git & GitHub
 
-## Conclusion
+## ⚙️ Run Locally
 
-This project demonstrates an end-to-end customer churn prediction system, from raw customer data through machine learning model development and evaluation to an interactive deployed application.
+Clone the repository:
+
+`git clone https://github.com/SarveshKasar-IT/customer-intelligence-churn.git`
+
+Navigate into the project:
+
+`cd customer-intelligence-churn`
+
+Create a virtual environment:
+
+`python -m venv .venv`
+
+Activate it on Windows:
+
+`.venv\\Scripts\\activate`
+
+Install dependencies:
+
+`pip install -r requirements.txt`
+
+Run the application:
+
+`streamlit run app.py`
+
+## 📈 Business Value
+
+A churn prediction system can help a business:
+
+- Identify customers who may be at risk of leaving
+- Prioritize retention campaigns
+- Allocate customer-success resources more efficiently
+- Understand patterns associated with customer churn
+- Develop targeted retention strategies
+
+The model is intended as a **decision-support tool**, not as a replacement for business judgment.
+
+## ⚠️ Limitations
+
+- Model performance depends on the underlying dataset.
+- Feature importance does not imply causation.
+- Predictions represent estimated probabilities.
+- Retention decisions should consider additional business context.
+- The dataset is historical and may not represent current behavior.
+
+## 👨‍💻 Author
+
+**Darshak Shah**
+
+Machine Learning Project — Customer Churn Prediction
+
+GitHub: https://github.com/SarveshKasar-IT/customer-intelligence-churn
+
+---
+
+⭐ If you found this project useful, consider starring the repository.
