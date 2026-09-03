@@ -5,11 +5,10 @@ An end-to-end **machine learning customer churn prediction project** built with 
 The project analyzes customer characteristics and service information to predict the probability that a customer will churn and provides actionable retention recommendations.
 
 ## 🚀 Live Demo
+https://customer-intelligence-churn-iuch3usa5hdn6pxn8lkuav.streamlit.app/
 
 👉 **Streamlit App:**
-
-PASTE_YOUR_STREAMLIT_APP_URL_HERE
-
+https://customer-intelligence-churn-iuch3usa5hdn6pxn8lkuav.streamlit.app/
 ## 📌 Project Overview
 
 Customer churn is an important business problem because retaining an existing customer can be more cost-effective than acquiring a new one.
