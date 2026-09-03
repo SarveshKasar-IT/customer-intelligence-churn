@@ -173,7 +173,7 @@ The model is intended as a **decision-support tool**, not as a replacement for b
 
 ## 👨‍💻 Author
 
-**Darshak Shah**
+**Sarvesh Kasar**
 
 Machine Learning Project — Customer Churn Prediction
 
