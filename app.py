@@ -5,20 +5,143 @@ import numpy as np
 import joblib
 import os
 
-
 # ============================================================
 # PAGE CONFIGURATION
 # ============================================================
 
 st.set_page_config(
-    page_title="Customer Churn Prediction",
+    page_title="Customer Churn Intelligence",
     page_icon="📊",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+# ============================================================
+# CUSTOM CSS
+# ============================================================
+
+st.markdown("""
+<style>
+
+    /* Main page */
+    .main {
+        padding-top: 1rem;
+    }
+
+    /* Hide Streamlit default menu/footer */
+    #MainMenu {
+        visibility: hidden;
+    }
+
+    footer {
+        visibility: hidden;
+    }
+
+    /* Header */
+    .hero {
+        padding: 1.5rem 2rem;
+        border-radius: 16px;
+        background: linear-gradient(
+            135deg,
+            #1f2937 0%,
+            #111827 100%
+        );
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+
+    .hero h1 {
+        font-size: 2.4rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .hero p {
+        font-size: 1.05rem;
+        opacity: 0.85;
+        margin-bottom: 0;
+    }
+
+    /* Metric cards */
+    .metric-card {
+        padding: 1.2rem;
+        border-radius: 14px;
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        text-align: center;
+        min-height: 120px;
+    }
+
+    .metric-title {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-value {
+        font-size: 1.7rem;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    /* Prediction cards */
+    .prediction-card {
+        padding: 1.5rem;
+        border-radius: 16px;
+        border: 1px solid #e5e7eb;
+        background: #ffffff;
+        margin-top: 1rem;
+    }
+
+    .risk-high {
+        border-left: 6px solid #dc2626;
+    }
+
+    .risk-medium {
+        border-left: 6px solid #f59e0b;
+    }
+
+    .risk-low {
+        border-left: 6px solid #16a34a;
+    }
+
+    .risk-label {
+        font-size: 1.6rem;
+        font-weight: 700;
+    }
+
+    .probability {
+        font-size: 2.4rem;
+        font-weight: 800;
+    }
+
+    /* Section headers */
+    .section-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin-top: 1.5rem;
+        margin-bottom: 0.8rem;
+        color: #111827;
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #f8fafc;
+    }
+
+    /* Buttons */
+    .stButton > button {
+        width: 100%;
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 0.65rem;
+    }
+
+</style>
+""", unsafe_allow_html=True)
 
 
 # ============================================================
-# LOAD MODEL
+# PATHS
 # ============================================================
 
 MODEL_PATH = "models/customer_churn_random_forest.pkl"
@@ -26,267 +149,62 @@ THRESHOLD_PATH = "models/churn_threshold.txt"
 DATA_PATH = "data/raw/telco_customer_churn.csv"
 
 
+# ============================================================
+# LOAD MODEL
+# ============================================================
+
 @st.cache_resource
 def load_model():
-
-    model = joblib.load(MODEL_PATH)
-
-    with open(THRESHOLD_PATH, "r") as f:
-        threshold = float(f.read().strip())
-
-    return model, threshold
+    return joblib.load(MODEL_PATH)
 
 
 @st.cache_data
-def load_training_columns():
+def load_training_data():
+    return pd.read_csv(DATA_PATH)
 
-    df = pd.read_csv(DATA_PATH)
 
-    # Same preprocessing used during model training
-
-    df["TotalCharges"] = pd.to_numeric(
-        df["TotalCharges"],
-        errors="coerce"
-    )
-
-    df["TotalCharges"] = df["TotalCharges"].fillna(0)
-
-    df["tenure_group"] = pd.cut(
-        df["tenure"],
-        bins=[-1, 12, 24, 48, 72],
-        labels=[
-            "0-12 months",
-            "13-24 months",
-            "25-48 months",
-            "49-72 months"
-        ]
-    )
-
-    df = df.drop(
-        columns=["customerID", "Churn"],
-        errors="ignore"
-    )
-
-    df_encoded = pd.get_dummies(
-        df,
-        drop_first=True
-    )
-
-    return df_encoded.columns.tolist()
+def load_threshold():
+    if os.path.exists(THRESHOLD_PATH):
+        with open(THRESHOLD_PATH, "r") as f:
+            return float(f.read().strip())
+    return 0.50
 
 
 try:
-
-    model, threshold = load_model()
-    training_columns = load_training_columns()
+    model = load_model()
+    df_raw = load_training_data()
+    churn_threshold = load_threshold()
 
 except Exception as e:
-
-    st.error(
-        "Unable to load the model or dataset."
-    )
-
-    st.code(str(e))
-
+    st.error("Unable to load the model or project files.")
+    st.exception(e)
     st.stop()
 
 
 # ============================================================
-# TITLE
+# RECREATE TRAINING FEATURES
 # ============================================================
 
-st.title("📊 Customer Churn Prediction")
+df_training = df_raw.copy()
 
-st.write(
-    """
-    This application predicts whether a telecommunications customer
-    is likely to churn based on their demographic, service, contract,
-    and billing information.
-    """
+df_training["TotalCharges"] = pd.to_numeric(
+    df_training["TotalCharges"],
+    errors="coerce"
 )
 
-st.info(
-    f"Current classification threshold: {threshold:.2f}"
-)
+df_training["TotalCharges"] = df_training["TotalCharges"].fillna(0)
 
-
-# ============================================================
-# SIDEBAR
-# ============================================================
-
-st.sidebar.header("Customer Information")
-
-st.sidebar.write(
-    "Enter the customer's information below."
-)
-
-
-# ============================================================
-# CUSTOMER DETAILS
-# ============================================================
-
-gender = st.sidebar.selectbox(
-    "Gender",
-    ["Female", "Male"]
-)
-
-senior_citizen = st.sidebar.selectbox(
-    "Senior Citizen",
-    [0, 1],
-    format_func=lambda x: "Yes" if x == 1 else "No"
-)
-
-partner = st.sidebar.selectbox(
-    "Partner",
-    ["No", "Yes"]
-)
-
-dependents = st.sidebar.selectbox(
-    "Dependents",
-    ["No", "Yes"]
-)
-
-tenure = st.sidebar.number_input(
-    "Tenure (months)",
-    min_value=0,
-    max_value=72,
-    value=12,
-    step=1
-)
-
-
-# ============================================================
-# SERVICE INFORMATION
-# ============================================================
-
-st.sidebar.subheader("Services")
-
-phone_service = st.sidebar.selectbox(
-    "Phone Service",
-    ["No", "Yes"]
-)
-
-multiple_lines = st.sidebar.selectbox(
-    "Multiple Lines",
-    ["No phone service", "No", "Yes"]
-)
-
-internet_service = st.sidebar.selectbox(
-    "Internet Service",
-    ["DSL", "Fiber optic", "No"]
-)
-
-online_security = st.sidebar.selectbox(
-    "Online Security",
-    ["No internet service", "No", "Yes"]
-)
-
-online_backup = st.sidebar.selectbox(
-    "Online Backup",
-    ["No internet service", "No", "Yes"]
-)
-
-device_protection = st.sidebar.selectbox(
-    "Device Protection",
-    ["No internet service", "No", "Yes"]
-)
-
-tech_support = st.sidebar.selectbox(
-    "Tech Support",
-    ["No internet service", "No", "Yes"]
-)
-
-streaming_tv = st.sidebar.selectbox(
-    "Streaming TV",
-    ["No internet service", "No", "Yes"]
-)
-
-streaming_movies = st.sidebar.selectbox(
-    "Streaming Movies",
-    ["No internet service", "No", "Yes"]
-)
-
-
-# ============================================================
-# CONTRACT AND BILLING
-# ============================================================
-
-st.sidebar.subheader("Contract & Billing")
-
-contract = st.sidebar.selectbox(
-    "Contract",
-    [
-        "Month-to-month",
-        "One year",
-        "Two year"
-    ]
-)
-
-paperless_billing = st.sidebar.selectbox(
-    "Paperless Billing",
-    ["No", "Yes"]
-)
-
-payment_method = st.sidebar.selectbox(
-    "Payment Method",
-    [
-        "Electronic check",
-        "Mailed check",
-        "Bank transfer (automatic)",
-        "Credit card (automatic)"
-    ]
-)
-
-monthly_charges = st.sidebar.number_input(
-    "Monthly Charges",
-    min_value=0.0,
-    max_value=200.0,
-    value=70.0,
-    step=1.0
-)
-
-total_charges = st.sidebar.number_input(
-    "Total Charges",
-    min_value=0.0,
-    max_value=10000.0,
-    value=monthly_charges * tenure,
-    step=10.0
-)
-
-
-# ============================================================
-# CREATE INPUT DATAFRAME
-# ============================================================
-
-customer_data = pd.DataFrame({
-    "gender": [gender],
-    "SeniorCitizen": [senior_citizen],
-    "Partner": [partner],
-    "Dependents": [dependents],
-    "tenure": [tenure],
-    "PhoneService": [phone_service],
-    "MultipleLines": [multiple_lines],
-    "InternetService": [internet_service],
-    "OnlineSecurity": [online_security],
-    "OnlineBackup": [online_backup],
-    "DeviceProtection": [device_protection],
-    "TechSupport": [tech_support],
-    "StreamingTV": [streaming_tv],
-    "StreamingMovies": [streaming_movies],
-    "Contract": [contract],
-    "PaperlessBilling": [paperless_billing],
-    "PaymentMethod": [payment_method],
-    "MonthlyCharges": [monthly_charges],
-    "TotalCharges": [total_charges]
+df_training["Churn"] = df_training["Churn"].map({
+    "No": 0,
+    "Yes": 1
 })
 
+df_training = df_training.drop(
+    columns=["customerID", "Churn"]
+)
 
-# ============================================================
-# CREATE TENURE GROUP
-# ============================================================
-
-customer_data["tenure_group"] = pd.cut(
-    customer_data["tenure"],
+df_training["tenure_group"] = pd.cut(
+    df_training["tenure"],
     bins=[-1, 12, 24, 48, 72],
     labels=[
         "0-12 months",
@@ -296,22 +214,224 @@ customer_data["tenure_group"] = pd.cut(
     ]
 )
 
-
-# ============================================================
-# ENCODE INPUT
-# ============================================================
-
-customer_encoded = pd.get_dummies(
-    customer_data,
+df_training_encoded = pd.get_dummies(
+    df_training,
     drop_first=True
 )
 
+training_columns = df_training_encoded.columns
 
-# Make sure input has exactly the same features as training data
 
-customer_encoded = customer_encoded.reindex(
-    columns=training_columns,
-    fill_value=0
+# ============================================================
+# SIDEBAR
+# ============================================================
+
+with st.sidebar:
+
+    st.markdown("## 🎯 Customer Profile")
+
+    st.caption(
+        "Enter customer information to estimate "
+        "the probability of churn."
+    )
+
+    st.markdown("---")
+
+    st.markdown("### 👤 Personal Information")
+
+    gender = st.selectbox(
+        "Gender",
+        ["Male", "Female"]
+    )
+
+    senior_citizen = st.selectbox(
+        "Senior Citizen",
+        [0, 1],
+        format_func=lambda x: "Yes" if x == 1 else "No"
+    )
+
+    partner = st.selectbox(
+        "Partner",
+        ["Yes", "No"]
+    )
+
+    dependents = st.selectbox(
+        "Dependents",
+        ["Yes", "No"]
+    )
+
+    st.markdown("### 📱 Services")
+
+    tenure = st.slider(
+        "Tenure (months)",
+        min_value=0,
+        max_value=72,
+        value=12
+    )
+
+    phone_service = st.selectbox(
+        "Phone Service",
+        ["Yes", "No"]
+    )
+
+    multiple_lines = st.selectbox(
+        "Multiple Lines",
+        ["No phone service", "No", "Yes"]
+    )
+
+    internet_service = st.selectbox(
+        "Internet Service",
+        ["DSL", "Fiber optic", "No"]
+    )
+
+    online_security = st.selectbox(
+        "Online Security",
+        ["No internet service", "No", "Yes"]
+    )
+
+    online_backup = st.selectbox(
+        "Online Backup",
+        ["No internet service", "No", "Yes"]
+    )
+
+    device_protection = st.selectbox(
+        "Device Protection",
+        ["No internet service", "No", "Yes"]
+    )
+
+    tech_support = st.selectbox(
+        "Tech Support",
+        ["No internet service", "No", "Yes"]
+    )
+
+    streaming_tv = st.selectbox(
+        "Streaming TV",
+        ["No internet service", "No", "Yes"]
+    )
+
+    streaming_movies = st.selectbox(
+        "Streaming Movies",
+        ["No internet service", "No", "Yes"]
+    )
+
+    st.markdown("### 💳 Billing")
+
+    contract = st.selectbox(
+        "Contract",
+        ["Month-to-month", "One year", "Two year"]
+    )
+
+    paperless_billing = st.selectbox(
+        "Paperless Billing",
+        ["Yes", "No"]
+    )
+
+    payment_method = st.selectbox(
+        "Payment Method",
+        [
+            "Electronic check",
+            "Mailed check",
+            "Bank transfer (automatic)",
+            "Credit card (automatic)"
+        ]
+    )
+
+    monthly_charges = st.number_input(
+        "Monthly Charges ($)",
+        min_value=0.0,
+        max_value=200.0,
+        value=70.0,
+        step=1.0
+    )
+
+    total_charges = st.number_input(
+        "Total Charges ($)",
+        min_value=0.0,
+        max_value=10000.0,
+        value=monthly_charges * max(tenure, 1),
+        step=10.0
+    )
+
+    st.markdown("---")
+
+    predict_button = st.button(
+        "🔮 Predict Churn Risk",
+        type="primary",
+        use_container_width=True
+    )
+
+
+# ============================================================
+# MAIN HEADER
+# ============================================================
+
+st.markdown("""
+<div class="hero">
+
+    <h1>📊 Customer Churn Intelligence</h1>
+
+    <p>
+        Machine learning powered customer retention and churn
+        risk prediction platform.
+    </p>
+
+</div>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# TOP INFORMATION CARDS
+# ============================================================
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.markdown("""
+    <div class="metric-card">
+        <div class="metric-title">🤖 Model</div>
+        <div class="metric-value">Random Forest</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown("""
+    <div class="metric-card">
+        <div class="metric-title">🎯 Prediction</div>
+        <div class="metric-value">Churn Probability</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-title">⚖️ Decision Threshold</div>
+        <div class="metric-value">{churn_threshold:.2f}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col4:
+    st.markdown("""
+    <div class="metric-card">
+        <div class="metric-title">📈 Risk Levels</div>
+        <div class="metric-value">3 Levels</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ============================================================
+# INTRODUCTION
+# ============================================================
+
+st.markdown(
+    '<div class="section-title">🔍 How it works</div>',
+    unsafe_allow_html=True
+)
+
+st.info(
+    "Enter a customer's profile using the sidebar. "
+    "The trained Random Forest model estimates their churn "
+    "probability and classifies the customer as Low, Medium, "
+    "or High risk."
 )
 
 
@@ -319,184 +439,294 @@ customer_encoded = customer_encoded.reindex(
 # PREDICTION
 # ============================================================
 
-st.header("Prediction")
+if predict_button:
 
-if st.button(
-    "🔍 Predict Customer Churn",
-    use_container_width=True
-):
+    # --------------------------------------------------------
+    # CREATE INPUT DATAFRAME
+    # --------------------------------------------------------
 
-    probability = model.predict_proba(
-        customer_encoded
+    input_data = pd.DataFrame({
+        "gender": [gender],
+        "SeniorCitizen": [senior_citizen],
+        "Partner": [partner],
+        "Dependents": [dependents],
+        "tenure": [tenure],
+        "PhoneService": [phone_service],
+        "MultipleLines": [multiple_lines],
+        "InternetService": [internet_service],
+        "OnlineSecurity": [online_security],
+        "OnlineBackup": [online_backup],
+        "DeviceProtection": [device_protection],
+        "TechSupport": [tech_support],
+        "StreamingTV": [streaming_tv],
+        "StreamingMovies": [streaming_movies],
+        "Contract": [contract],
+        "PaperlessBilling": [paperless_billing],
+        "PaymentMethod": [payment_method],
+        "MonthlyCharges": [monthly_charges],
+        "TotalCharges": [total_charges]
+    })
+
+    # --------------------------------------------------------
+    # TENURE GROUP
+    # --------------------------------------------------------
+
+    input_data["tenure_group"] = pd.cut(
+        input_data["tenure"],
+        bins=[-1, 12, 24, 48, 72],
+        labels=[
+            "0-12 months",
+            "13-24 months",
+            "25-48 months",
+            "49-72 months"
+        ]
+    )
+
+    # --------------------------------------------------------
+    # ONE-HOT ENCODING
+    # --------------------------------------------------------
+
+    input_encoded = pd.get_dummies(
+        input_data,
+        drop_first=True
+    )
+
+    # Match training features exactly
+    input_encoded = input_encoded.reindex(
+        columns=training_columns,
+        fill_value=0
+    )
+
+    # --------------------------------------------------------
+    # PREDICTION
+    # --------------------------------------------------------
+
+    churn_probability = model.predict_proba(
+        input_encoded
     )[0][1]
 
-    prediction = int(
-        probability >= threshold
+    churn_prediction = int(
+        churn_probability >= churn_threshold
+    )
+
+    # --------------------------------------------------------
+    # RISK LEVEL
+    # --------------------------------------------------------
+
+    if churn_probability >= 0.70:
+        risk_level = "HIGH"
+        risk_class = "risk-high"
+        risk_icon = "🔴"
+
+    elif churn_probability >= 0.40:
+        risk_level = "MEDIUM"
+        risk_class = "risk-medium"
+        risk_icon = "🟠"
+
+    else:
+        risk_level = "LOW"
+        risk_class = "risk-low"
+        risk_icon = "🟢"
+
+
+    # ========================================================
+    # RESULT HEADER
+    # ========================================================
+
+    st.markdown(
+        '<div class="section-title">🎯 Churn Prediction Result</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        f"""
+        <div class="prediction-card {risk_class}">
+
+            <div style="display:flex;
+                        justify-content:space-between;
+                        align-items:center;">
+
+                <div>
+                    <div style="color:#6b7280;
+                                font-size:0.9rem;">
+                        Predicted Risk Level
+                    </div>
+
+                    <div class="risk-label">
+                        {risk_icon} {risk_level} RISK
+                    </div>
+                </div>
+
+                <div style="text-align:right;">
+
+                    <div style="color:#6b7280;
+                                font-size:0.9rem;">
+                        Churn Probability
+                    </div>
+
+                    <div class="probability">
+                        {churn_probability:.1%}
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
 
     # ========================================================
-    # DISPLAY PROBABILITY
+    # PROBABILITY BAR
     # ========================================================
 
-    col1, col2, col3 = st.columns(3)
+    st.markdown(
+        '<div class="section-title">📊 Risk Probability</div>',
+        unsafe_allow_html=True
+    )
 
-    with col1:
-
-        st.metric(
-            "Churn Probability",
-            f"{probability:.1%}"
-        )
-
-    with col2:
-
-        if prediction == 1:
-
-            st.metric(
-                "Prediction",
-                "⚠️ CHURN"
-            )
-
-        else:
-
-            st.metric(
-                "Prediction",
-                "✅ NO CHURN"
-            )
-
-    with col3:
-
-        if probability >= 0.70:
-
-            risk = "HIGH"
-
-        elif probability >= 0.40:
-
-            risk = "MEDIUM"
-
-        else:
-
-            risk = "LOW"
-
-        st.metric(
-            "Risk Level",
-            risk
-        )
+    st.progress(
+        float(churn_probability),
+        text=f"Estimated churn probability: {churn_probability:.1%}"
+    )
 
 
     # ========================================================
-    # RESULT MESSAGE
+    # PREDICTION MESSAGE
     # ========================================================
 
-    if prediction == 1:
+    if churn_prediction == 1:
 
         st.error(
-            f"""
-            ⚠️ This customer is predicted to be at risk of churn.
-
-            Estimated churn probability: {probability:.1%}
-
-            The business should consider proactive retention actions.
-            """
-        )
-
-        st.subheader(
-            "Recommended Retention Actions"
-        )
-
-        st.write(
-            """
-            • Contact the customer proactively
-
-            • Review pricing and plan suitability
-
-            • Consider a loyalty or retention offer
-
-            • Investigate service quality issues
-
-            • Encourage migration to a longer-term contract
-
-            • Provide additional customer support
-            """
+            f"⚠️ **Customer is predicted to churn.** "
+            f"The model estimates a {churn_probability:.1%} "
+            f"probability of churn."
         )
 
     else:
 
         st.success(
-            f"""
-            ✅ This customer is predicted to remain with the company.
-
-            Estimated churn probability: {probability:.1%}
-            """
-        )
-
-        st.info(
-            """
-            Continue normal customer engagement and monitor the
-            customer periodically.
-            """
+            f"✅ **Customer is predicted to stay.** "
+            f"The estimated churn probability is "
+            f"{churn_probability:.1%}."
         )
 
 
-# ============================================================
-# CUSTOMER INPUT SUMMARY
-# ============================================================
+    # ========================================================
+    # RETENTION RECOMMENDATIONS
+    # ========================================================
 
-st.header("Customer Summary")
-
-summary = pd.DataFrame({
-    "Attribute": [
-        "Gender",
-        "Senior Citizen",
-        "Partner",
-        "Dependents",
-        "Tenure",
-        "Internet Service",
-        "Contract",
-        "Payment Method",
-        "Monthly Charges",
-        "Total Charges"
-    ],
-
-    "Value": [
-        gender,
-        "Yes" if senior_citizen == 1 else "No",
-        partner,
-        dependents,
-        f"{tenure} months",
-        internet_service,
-        contract,
-        payment_method,
-        f"${monthly_charges:.2f}",
-        f"${total_charges:.2f}"
-    ]
-})
-
-st.dataframe(
-    summary,
-    use_container_width=True,
-    hide_index=True
-)
-
-
-# ============================================================
-# MODEL INFORMATION
-# ============================================================
-
-with st.expander("Model Information"):
-
-    st.write(
-        f"""
-        **Model:** {type(model).__name__}
-
-        **Classification Threshold:** {threshold:.2f}
-
-        **Test ROC-AUC:** {0.0 if "final_roc_auc" not in globals() else final_roc_auc:.4f}
-
-        This model was developed using customer demographic,
-        service, contract, and billing information.
-        """
+    st.markdown(
+        '<div class="section-title">💡 Recommended Retention Actions</div>',
+        unsafe_allow_html=True
     )
+
+    if risk_level == "HIGH":
+
+        recommendations = [
+            "📞 Contact the customer proactively.",
+            "🎁 Offer a personalized retention incentive.",
+            "💳 Review pricing and billing concerns.",
+            "📋 Consider moving the customer to a longer-term contract.",
+            "🛠️ Check whether service or technical issues are affecting satisfaction."
+        ]
+
+    elif risk_level == "MEDIUM":
+
+        recommendations = [
+            "📧 Send a personalized engagement offer.",
+            "🎁 Consider a targeted discount or loyalty benefit.",
+            "📊 Monitor customer activity and service usage.",
+            "📞 Consider a proactive customer-success contact."
+        ]
+
+    else:
+
+        recommendations = [
+            "⭐ Continue providing consistent service.",
+            "🎁 Consider loyalty rewards.",
+            "📈 Monitor the customer for changes in behavior.",
+            "💬 Maintain regular customer engagement."
+        ]
+
+    for recommendation in recommendations:
+        st.write(recommendation)
+
+
+    # ========================================================
+    # CUSTOMER SUMMARY
+    # ========================================================
+
+    st.markdown(
+        '<div class="section-title">👤 Customer Summary</div>',
+        unsafe_allow_html=True
+    )
+
+    summary_col1, summary_col2, summary_col3 = st.columns(3)
+
+    with summary_col1:
+
+        st.metric(
+            "Tenure",
+            f"{tenure} months"
+        )
+
+        st.metric(
+            "Monthly Charges",
+            f"${monthly_charges:,.2f}"
+        )
+
+    with summary_col2:
+
+        st.metric(
+            "Total Charges",
+            f"${total_charges:,.2f}"
+        )
+
+        st.metric(
+            "Contract",
+            contract
+        )
+
+    with summary_col3:
+
+        st.metric(
+            "Internet Service",
+            internet_service
+        )
+
+        st.metric(
+            "Payment Method",
+            payment_method
+        )
+
+
+    # ========================================================
+    # MODEL DECISION
+    # ========================================================
+
+    with st.expander("🔬 View model decision details"):
+
+        st.write(
+            f"**Churn probability:** "
+            f"{churn_probability:.4f}"
+        )
+
+        st.write(
+            f"**Decision threshold:** "
+            f"{churn_threshold:.4f}"
+        )
+
+        st.write(
+            f"**Predicted class:** "
+            f"{'Churn' if churn_prediction == 1 else 'No Churn'}"
+        )
+
+        st.write(
+            "**Model:** Random Forest Classifier"
+        )
 
 
 # ============================================================
@@ -506,5 +736,11 @@ with st.expander("Model Information"):
 st.markdown("---")
 
 st.caption(
-    "Customer Churn Prediction | Machine Learning Project"
+    "Customer Churn Intelligence • Machine Learning Project • "
+    "Random Forest Classification"
+)
+
+st.caption(
+    "⚠️ Predictions are model estimates and should be used "
+    "as decision-support information."
 )
