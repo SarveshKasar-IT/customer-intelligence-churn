@@ -616,20 +616,14 @@ with prediction_tab:
         # ----------------------------------------------------
 
         st.markdown(
-            f"""
-            <div class="{risk_class}">
-                <div>
-                    Predicted Risk Level
-                </div>
-
-                <div class="risk-label">
-                    {risk_icon} {risk_level} RISK
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
+    f"""
+    <div class="{risk_class}">
+        <div>Predicted Risk Level</div>
+        <div class="risk-label">{risk_icon} {risk_level} RISK</div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
         # ----------------------------------------------------
         # PROBABILITY BAR
