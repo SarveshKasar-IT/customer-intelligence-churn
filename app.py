@@ -2,12 +2,12 @@ import os
 import joblib
 import numpy as np
 import pandas as pd
+import requests
 import streamlit as st
 
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
-from src.preprocessing import build_features
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -167,6 +167,13 @@ THRESHOLD_PATH = "models/churn_threshold.txt"
 DATA_PATH = "data/raw/telco_customer_churn.csv"
 FEATURE_IMPORTANCE_PATH = "models/feature_importance.csv"
 
+# Local development API URL.
+# During deployment, this can be replaced through an environment variable.
+API_URL = os.getenv(
+    "MODEL_API_URL",
+    "http://127.0.0.1:8000/predict"
+)
+
 
 # ============================================================
 # LOAD MODEL
@@ -287,15 +294,6 @@ training_features = prepare_training_features(df)
 
 training_columns = training_features.columns.tolist()
 
-
-# ============================================================
-# PREDICTION PREPARATION
-# ============================================================
-# Uses the shared function so a single customer is encoded exactly like
-# the training data (see src/preprocessing.py).
-
-def prepare_customer_input(customer_data):
-    return build_features(customer_data, model.feature_names_in_)
 
 # ============================================================
 # HEADER
@@ -478,6 +476,10 @@ with prediction_tab:
 
     if predict_button:
 
+        # ----------------------------------------------------
+        # CREATE CUSTOMER INPUT
+        # ----------------------------------------------------
+
         customer_input = pd.DataFrame(
             [{
                 "gender": gender,
@@ -503,40 +505,95 @@ with prediction_tab:
         )
 
 
-        # Prepare input
-        processed_input = prepare_customer_input(
-            customer_input
-        )
+        # ----------------------------------------------------
+        # CALL FASTAPI PREDICTION SERVICE
+        # ----------------------------------------------------
+
+        try:
+
+            response = requests.post(
+                API_URL,
+                json=customer_input.iloc[0].to_dict(),
+                timeout=10
+            )
+
+            response.raise_for_status()
+
+            prediction_result = response.json()
+
+            churn_probability = prediction_result[
+                "churn_probability"
+            ]
+
+            churn_prediction = int(
+                prediction_result["will_churn"]
+            )
+
+            risk_level = prediction_result[
+                "risk_level"
+            ]
+
+            final_threshold = prediction_result[
+                "threshold"
+            ]
+
+            recommendation = prediction_result.get(
+                "recommendation",
+                ""
+            )
+
+        except requests.exceptions.ConnectionError:
+
+            st.error(
+                "Could not connect to the FastAPI prediction "
+                "service. Please make sure FastAPI is running "
+                "at http://127.0.0.1:8000."
+            )
+
+            st.stop()
+
+        except requests.exceptions.Timeout:
+
+            st.error(
+                "The FastAPI prediction service took too long "
+                "to respond."
+            )
+
+            st.stop()
+
+        except requests.exceptions.RequestException as e:
+
+            st.error(
+                f"Prediction API error: {e}"
+            )
+
+            st.stop()
+
+        except (KeyError, ValueError, TypeError) as e:
+
+            st.error(
+                f"Unexpected prediction response from API: {e}"
+            )
+
+            st.stop()
 
 
-        # Predict probability
-        churn_probability = model.predict_proba(
-            processed_input
-        )[0][1]
+        # ----------------------------------------------------
+        # RISK CARD STYLE
+        # ----------------------------------------------------
 
+        if risk_level == "HIGH":
 
-        # Binary prediction
-        churn_prediction = int(
-            churn_probability >= final_threshold
-        )
-
-
-        # Risk level
-        if churn_probability >= 0.70:
-
-            risk_level = "HIGH"
             risk_class = "risk-high"
             risk_icon = "🔴"
 
-        elif churn_probability >= 0.40:
+        elif risk_level == "MEDIUM":
 
-            risk_level = "MEDIUM"
             risk_class = "risk-medium"
             risk_icon = "🟡"
 
         else:
 
-            risk_level = "LOW"
             risk_class = "risk-low"
             risk_icon = "🟢"
 
@@ -576,14 +633,17 @@ with prediction_tab:
         # ----------------------------------------------------
 
         st.markdown(
-    f"""
-    <div class="{risk_class}">
-        <div>Predicted Risk Level</div>
-        <div class="risk-label">{risk_icon} {risk_level} RISK</div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+            f"""
+            <div class="{risk_class}">
+                <div>Predicted Risk Level</div>
+                <div class="risk-label">
+                    {risk_icon} {risk_level} RISK
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
 
         # ----------------------------------------------------
         # PROBABILITY BAR
@@ -596,8 +656,8 @@ with prediction_tab:
         )
 
         st.caption(
-            f"Estimated probability that this customer will churn: "
-            f"{churn_probability:.2%}"
+            f"Estimated probability that this customer will "
+            f"churn: {churn_probability:.2%}"
         )
 
 
@@ -607,28 +667,44 @@ with prediction_tab:
 
         st.subheader("💡 Recommended Action")
 
-        if risk_level == "HIGH":
+        if recommendation:
 
-            st.error(
-                "High churn risk detected. Consider proactive "
-                "retention action such as a personalized offer, "
-                "service review, or customer-support intervention."
-            )
+            if risk_level == "HIGH":
 
-        elif risk_level == "MEDIUM":
+                st.error(recommendation)
 
-            st.warning(
-                "Moderate churn risk detected. Consider monitoring "
-                "this customer and providing targeted engagement "
-                "or service-support options."
-            )
+            elif risk_level == "MEDIUM":
+
+                st.warning(recommendation)
+
+            else:
+
+                st.success(recommendation)
 
         else:
 
-            st.success(
-                "Low churn risk detected. Continue normal customer "
-                "engagement and service monitoring."
-            )
+            if risk_level == "HIGH":
+
+                st.error(
+                    "High churn risk detected. Consider proactive "
+                    "retention action such as a personalized offer, "
+                    "service review, or customer-support intervention."
+                )
+
+            elif risk_level == "MEDIUM":
+
+                st.warning(
+                    "Moderate churn risk detected. Consider monitoring "
+                    "this customer and providing targeted engagement "
+                    "or service-support options."
+                )
+
+            else:
+
+                st.success(
+                    "Low churn risk detected. Continue normal customer "
+                    "engagement and service monitoring."
+                )
 
 
         # ----------------------------------------------------
@@ -645,7 +721,9 @@ with prediction_tab:
                 f"""
                 **Gender:** {gender}
 
-                **Senior Citizen:** {"Yes" if senior_citizen == 1 else "No"}
+                **Senior Citizen:** {
+                    "Yes" if senior_citizen == 1 else "No"
+                }
 
                 **Partner:** {partner}
 
@@ -689,8 +767,8 @@ with prediction_tab:
         if churn_prediction == 1:
 
             st.info(
-                f"The model classified this customer as likely to "
-                f"churn because the estimated probability "
+                f"The model classified this customer as likely "
+                f"to churn because the estimated probability "
                 f"({churn_probability:.2%}) is above the saved "
                 f"classification threshold ({final_threshold:.2%})."
             )
@@ -698,8 +776,8 @@ with prediction_tab:
         else:
 
             st.info(
-                f"The model classified this customer as likely to "
-                f"stay because the estimated probability "
+                f"The model classified this customer as likely "
+                f"to stay because the estimated probability "
                 f"({churn_probability:.2%}) is below the saved "
                 f"classification threshold ({final_threshold:.2%})."
             )
@@ -748,7 +826,10 @@ with insights_tab:
     )
 
 
-    # Make sure columns match model input
+    # --------------------------------------------------------
+    # MAKE SURE COLUMNS MATCH MODEL INPUT
+    # --------------------------------------------------------
+
     X_test_eval = X_test_eval.reindex(
         columns=training_columns,
         fill_value=0
@@ -808,30 +889,35 @@ with insights_tab:
     c1, c2, c3, c4, c5 = st.columns(5)
 
     with c1:
+
         st.metric(
             "Accuracy",
             f"{accuracy:.2%}"
         )
 
     with c2:
+
         st.metric(
             "Precision",
             f"{precision:.2%}"
         )
 
     with c3:
+
         st.metric(
             "Recall",
             f"{recall:.2%}"
         )
 
     with c4:
+
         st.metric(
             "F1 Score",
             f"{f1:.2%}"
         )
 
     with c5:
+
         st.metric(
             "ROC-AUC",
             f"{roc_auc:.4f}"
