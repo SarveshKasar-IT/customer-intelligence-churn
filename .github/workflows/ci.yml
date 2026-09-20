@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-*.txt
+      - name: Install dependencies
+        run: pip install -r requirements-api.txt -r requirements-dev.txt
+      - name: Run tests
+        run: pytest -q
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t churn-api .
+      - name: Start container and check health
+        run: |
+          docker run -d -p 8000:8000 --name churn-api churn-api
+          for i in $(seq 1 15); do
+            curl --silent --fail http://localhost:8000/health && exit 0
+            sleep 2
+          done
+          docker logs churn-api
+          exit 1

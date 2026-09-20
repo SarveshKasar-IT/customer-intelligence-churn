@@ -6,6 +6,8 @@ import streamlit as st
 
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+
+from src.preprocessing import build_features
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -289,53 +291,11 @@ training_columns = training_features.columns.tolist()
 # ============================================================
 # PREDICTION PREPARATION
 # ============================================================
+# Uses the shared function so a single customer is encoded exactly like
+# the training data (see src/preprocessing.py).
 
 def prepare_customer_input(customer_data):
-
-    customer_data = customer_data.copy()
-
-    # Convert TotalCharges
-    customer_data["TotalCharges"] = pd.to_numeric(
-        customer_data["TotalCharges"],
-        errors="coerce"
-    )
-
-    customer_data["TotalCharges"] = customer_data[
-        "TotalCharges"
-    ].fillna(0)
-
-    # Create tenure group
-    customer_data["tenure_group"] = pd.cut(
-        customer_data["tenure"],
-        bins=[-1, 12, 24, 48, 72],
-        labels=[
-            "0-12 months",
-            "13-24 months",
-            "25-48 months",
-            "49-72 months"
-        ]
-    )
-
-    # Drop customer ID
-    customer_data = customer_data.drop(
-        columns=["customerID"],
-        errors="ignore"
-    )
-
-    # One-hot encoding
-    customer_data = pd.get_dummies(
-        customer_data,
-        drop_first=True
-    )
-
-    # Make sure prediction columns match training columns
-    customer_data = customer_data.reindex(
-        columns=training_columns,
-        fill_value=0
-    )
-
-    return customer_data
-
+    return build_features(customer_data, model.feature_names_in_)
 
 # ============================================================
 # HEADER
