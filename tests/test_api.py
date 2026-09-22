@@ -15,7 +15,7 @@ def test_health(client):
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "ok"
-    assert body["model"] == "RandomForestClassifier"
+    assert body["model"] == "XGBClassifier"
     assert body["n_features"] == 33
 
 

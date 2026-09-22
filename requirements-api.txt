@@ -8,3 +8,4 @@ joblib==1.6.0
 fastapi==0.141.1
 uvicorn[standard]==0.53.0
 pydantic==2.13.5
+xgboost==3.4.1
