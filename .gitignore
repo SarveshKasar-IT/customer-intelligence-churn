@@ -1,4 +1,22 @@
+# Python
 __pycache__/
 *.py[cod]
 .venv/
+
+# Environment / secrets
 .env
+
+# Testing / local caches
+.pytest_cache/
+
+# Local MLflow tracking
+mlflow.db
+mlruns/
+
+# Temporary archives
+*.zip
+
+# Local/generated temporary files
+models/stage3_preprocessor.pkl
+confusion_matrix_Random_Forest_Baseline.csv
+telco_customer_churn.csv.csv
